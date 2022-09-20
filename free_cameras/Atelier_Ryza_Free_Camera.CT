@@ -17,36 +17,55 @@ mouseSensitivity:
 dd (float)8
 
 aobscanmodule(camerastatus_aob,Atelier_Ryza.exe,F8 00 00 00 48 8B 06 0F 10 50 10) // should be unique
+aobscanmodule(ryza_location_aob,Atelier_Ryza.exe,48 8B 45 60 0F 28 0D FF 3F 71 00) // should be unique
 aobscanmodule(detachcamera_aob,Atelier_Ryza.exe,0F 11 46 10 0F 10 44 24 50) // should be unique
 alloc(newmem,$1000,camerastatus_aob)
 
-label(code)
+label(camerastatuscode)
+label(ryza_location_code)
 label(cameracoordinates)
-label(return)
+label(ryza_location_pointer)
+label(camerastatusreturn)
+label(ryza_location_return)
 
 registersymbol(camerastatus_aob)
-registersymbol(cameracoordinates)
+registersymbol(ryza_location_aob)
 registersymbol(detachcamera_aob)
+registersymbol(cameracoordinates)
+registersymbol(ryza_location_pointer)
 
 newmem:
 
-code:
+camerastatuscode:
   mov rax,[rsi]
   mov [cameracoordinates],rax
   movups xmm2,[rax+10]
-  jmp return
+  jmp camerastatusreturn
+
+ryza_location_code:
+  mov rax,[rbp+60]
+  mov [ryza_location_pointer],rax
+  movaps xmm1,[Atelier_Ryza.exe+A657D0]
+  jmp ryza_location_return
 
 cameracoordinates:
   dq #0
 
+ryza_location_pointer:
+  dq #0
+
 camerastatus_aob+04:
-  jmp newmem
+  jmp camerastatuscode
   nop 2
-return:
+camerastatusreturn:
+
+ryza_location_aob:
+  jmp ryza_location_code
+  nop 6
+ryza_location_return:
 
 detachcamera_aob:
   db 90 90 90 90 0F 10 44 24 50 F3 0F 11 4D C8 90 90 90 90
-
 
 {$lua}
 
@@ -200,6 +219,14 @@ function checkKeys()
       writeFloat("cameracoordinates+28", camy - (camdist * math.cos(tilt) * math.cos(pan)))
       writeFloat("cameracoordinates+24", camz - (camdist * math.sin(tilt)))
 
+      --Teleport to where the camera is looking
+      if isKeyPressed(VK_DIVIDE) then
+        writeFloat("cameracoordinates+30", camx - (camdist * math.cos(tilt) * math.sin(pan)))
+        writeFloat("cameracoordinates+38", camy - (camdist * math.cos(tilt) * math.cos(pan)))
+        writeFloat("cameracoordinates+34", camz - (camdist * math.sin(tilt)))
+        copyMemory("cameracoordinates+30",12,"[ryza_location_pointer]+28")
+      end
+
       --Copy buffer back into memory read by game engine
       copyMemory("cameracoordinates+10",32,"[cameracoordinates]+10")
     end
@@ -241,12 +268,17 @@ timer_setEnabled(t, false)
 camerastatus_aob+04:
   db 48 8B 06 0F 10 50 10
 
+ryza_location_aob:
+  db 48 8B 45 60 0F 28 0D FF 3F 71 00
+
 detachcamera_aob:
   db 0F 11 46 10 0F 10 44 24 50 F3 0F 11 4D C8 0F 11 46 20
 
 unregistersymbol(camerastatus_aob)
-unregistersymbol(cameracoordinates)
+unregistersymbol(ryza_location_aob)
 unregistersymbol(detachcamera_aob)
+unregistersymbol(cameracoordinates)
+unregistersymbol(ryza_location_pointer)
 dealloc(newmem)
 
 {
@@ -275,6 +307,32 @@ Atelier_Ryza.exe+33B24A: 7A 33                    - jp Atelier_Ryza.exe+33B27F
 Atelier_Ryza.exe+33B24C: 75 31                    - jne Atelier_Ryza.exe+33B27F
 Atelier_Ryza.exe+33B24E: F3 0F 10 44 24 24        - movss xmm0,[rsp+24]
 Atelier_Ryza.exe+33B254: 0F 2E 44 24 3C           - ucomiss xmm0,[rsp+3C]
+
+// ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+3517C6 - Ryza's Coordinates
+
+Atelier_Ryza.exe+35178A: 80 BE 05 01 00 00 00        - cmp byte ptr [rsi+00000105],00
+Atelier_Ryza.exe+351791: 0F 84 E5 03 00 00           - je Atelier_Ryza.exe+351B7C
+Atelier_Ryza.exe+351797: 48 8B 46 20                 - mov rax,[rsi+20]
+Atelier_Ryza.exe+35179B: 4C 8D 44 24 58              - lea r8,[rsp+58]
+Atelier_Ryza.exe+3517A0: F3 44 0F 10 86 D4 00 00 00  - movss xmm8,[rsi+000000D4]
+Atelier_Ryza.exe+3517A9: 48 8D 55 88                 - lea rdx,[rbp-78]
+Atelier_Ryza.exe+3517AD: F3 44 0F 59 05 2A AC 6E 00  - mulss xmm8,[Atelier_Ryza.exe+A3C3E0]
+Atelier_Ryza.exe+3517B6: 48 8B CE                    - mov rcx,rsi
+Atelier_Ryza.exe+3517B9: C7 44 24 3C 00 00 00 00     - mov [rsp+3C],00000000
+Atelier_Ryza.exe+3517C1: 44 0F 10 68 20              - movups xmm13,[rax+20]
+// ---------- INJECTING HERE ----------
+Atelier_Ryza.exe+3517C6: 48 8B 45 60                 - mov rax,[rbp+60]
+// ---------- DONE INJECTING  ----------
+Atelier_Ryza.exe+3517CA: 0F 28 0D FF 3F 71 00        - movaps xmm1,[Atelier_Ryza.exe+A657D0]
+Atelier_Ryza.exe+3517D1: 45 0F C6 ED 55              - shufps xmm13,xmm13,55
+Atelier_Ryza.exe+3517D6: 45 0F 28 DD                 - movaps xmm11,xmm13
+Atelier_Ryza.exe+3517DA: F3 45 0F 59 C4              - mulss xmm8,xmm12
+Atelier_Ryza.exe+3517DF: 0F 10 40 28                 - movups xmm0,[rax+28]
+Atelier_Ryza.exe+3517E3: 48 8B 06                    - mov rax,[rsi]
+Atelier_Ryza.exe+3517E6: F3 44 0F 59 05 6D B2 6E 00  - mulss xmm8,[Atelier_Ryza.exe+A3CA5C]
+Atelier_Ryza.exe+3517EF: 48 C7 44 24 60 00 00 00 00  - mov qword ptr [rsp+60],00000000
+Atelier_Ryza.exe+3517F8: 0F 10 D0                    - movups xmm2,xmm0
+Atelier_Ryza.exe+3517FB: 48 C7 44 24 58 00 00 00 00  - mov qword ptr [rsp+58],00000000
 
 // ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+46FD4E - Detach Camera
 
@@ -570,9 +628,9 @@ registersymbol(playerlocation_aob)
 registersymbol(playerlocationpointer)
 
 newmem:
-  mov [playerlocationpointer],rax
 
 code:
+  mov [playerlocationpointer],rax
   movups xmm0,[rax+28]
   mov rax,[rsi]
   jmp return
@@ -591,6 +649,7 @@ playerlocation_aob:
   db 0F 10 40 28 48 8B 06
 
 unregistersymbol(playerlocation_aob)
+unregistersymbol(playerlocationpointer)
 dealloc(newmem)
 
 {
@@ -864,20 +923,6 @@ Atelier_Ryza.exe+35885C: 40 84 FF                 - test dil,dil
       </CheatEntries>
     </CheatEntry>
   </CheatEntries>
-  <UserdefinedSymbols>
-    <SymbolEntry>
-      <Name>speedModifier</Name>
-      <Address>7FFB0000</Address>
-    </SymbolEntry>
-    <SymbolEntry>
-      <Name>useMouse</Name>
-      <Address>7FFB0010</Address>
-    </SymbolEntry>
-    <SymbolEntry>
-      <Name>mouseSensitivity</Name>
-      <Address>7FFB0020</Address>
-    </SymbolEntry>
-  </UserdefinedSymbols>
   <Comments>Camera Movement Algorithm adapted from Cyber's CS4 free camera script.
 </Comments>
 </CheatTable>
