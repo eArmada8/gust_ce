@@ -78,8 +78,9 @@ function checkKeys()
     local speed = readFloat("speedModifier")
     local use_mouse = readFloat("useMouse")
     --If mouse control is enabled in-game, disable mouse control in freecam mode
-    if (readSmallInteger("Atelier_Ryza.exe+1481941") &gt; 0) then
+    if (readByte("Atelier_Ryza.exe+1481940") &gt; 0) then
       use_mouse = 0
+      writeByte("Atelier_Ryza.exe+1481940",00)
     end
     local mouse_speed = readFloat("mouseSensitivity")
 
@@ -117,6 +118,10 @@ function checkKeys()
       --Measure mouse movement from previous cycle
       local mouse_move_x = new_mouse_x - math.ceil(getScreenWidth() / 32)
       local mouse_move_y = new_mouse_y - math.ceil(getScreenHeight() / 32)
+
+      --Try to determine if the game engine is moving the mouse, and discard values if detected
+      if mouse_move_x &gt; math.abs(math.ceil(getScreenWidth() / 4)) then mouse_move_x = 0 end
+      if mouse_move_y &gt; math.abs(math.ceil(getScreenHeight() / 4)) then mouse_move_y = 0 end
 
       --Use math.rad() to convert from degrees if game values aren't in radians
       local camdist = ((targetx - camx)^2 + (targety - camy)^2 + (targetz - camz)^2)^0.5
@@ -184,19 +189,19 @@ function checkKeys()
        camz = camz - (speed * 2)
       end
       --Pan right
-      if isKeyPressed(VK_RIGHT) then
+      if isKeyPressed(VK_NUMPAD9) then
         pan = pan - speed * 0.01
       end
       --Pan left
-      if isKeyPressed(VK_LEFT) then
+      if isKeyPressed(VK_NUMPAD7) then
         pan = pan + speed * 0.01
       end
       --Tilt up
-      if isKeyPressed(VK_UP) then
+      if isKeyPressed(VK_NUMPAD3) then
         tilt = math.max(tilt - speed * 0.01, math.rad(-89.5))
       end
       --Tilt down
-      if isKeyPressed(VK_DOWN) then
+      if isKeyPressed(VK_DECIMAL) then
         tilt = math.min(tilt + speed * 0.01, math.rad(89.5))
       end
 
@@ -268,6 +273,7 @@ timer_setEnabled(t, true)
 {$lua}
 
 timer_setEnabled(t, false)
+writeByte("Atelier_Ryza.exe+1481940",01)
 
 {$asm}
 
@@ -404,13 +410,6 @@ Atelier_Ryza.exe+54FCEC: CC                    - int 3
           <DeactivateSound>Deactivate</DeactivateSound>
         </Hotkey>
       </Hotkeys>
-    </CheatEntry>
-    <CheatEntry>
-      <ID>118</ID>
-      <Description>"Enable Mouse"</Description>
-      <ShowAsSigned>0</ShowAsSigned>
-      <VariableType>Byte</VariableType>
-      <Address>Atelier_Ryza.exe+1481941</Address>
     </CheatEntry>
     <CheatEntry>
       <ID>1000</ID>
@@ -973,6 +972,13 @@ Atelier_Ryza.exe+35885C: 40 84 FF                 - test dil,dil
           <ShowAsSigned>0</ShowAsSigned>
           <VariableType>Byte</VariableType>
           <Address>Atelier_Ryza.exe+1481940</Address>
+        </CheatEntry>
+        <CheatEntry>
+          <ID>118</ID>
+          <Description>"Enable Mouse"</Description>
+          <ShowAsSigned>0</ShowAsSigned>
+          <VariableType>Byte</VariableType>
+          <Address>Atelier_Ryza.exe+1481941</Address>
         </CheatEntry>
       </CheatEntries>
     </CheatEntry>
