@@ -3,7 +3,7 @@
   <CheatEntries>
     <CheatEntry>
       <ID>1</ID>
-      <Description>"Free Camera"</Description>
+      <Description>"Free Camera (Num 0 Toggle)"</Description>
       <VariableType>Auto Assembler Script</VariableType>
       <AssemblerScript>[ENABLE]
 globalalloc(speedModifier,8)
