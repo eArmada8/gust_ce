@@ -16,63 +16,33 @@ globalalloc(mouseSensitivity,8)
 mouseSensitivity:
 dd (float)8
 
-aobscanmodule(camerastatus_aob,Atelier_Ryza.exe,F8 00 00 00 48 8B 06 0F 10 50 10) // should be unique
-aobscanmodule(ryza_location_aob,Atelier_Ryza.exe,48 8B 45 60 0F 28 0D FF 3F 71 00) // should be unique
 aobscanmodule(detachcamera_aob,Atelier_Ryza.exe,0F 11 46 10 0F 10 44 24 50) // should be unique
-alloc(newmem,$1000,camerastatus_aob)
+aobscanmodule(detachcamera_aob2,Atelier_Ryza.exe,0F 11 46 10 0F 10 44 24 30 0F 11 46 20 E8 CB) // should be unique
+alloc(newmem,$1000,detachcamera_aob)
 
-label(camerastatuscode)
-label(ryza_location_code)
-label(ryza_location_pointer)
-label(cameracoordinates)
-label(camerastatusreturn)
-label(ryza_location_return)
+label(memorybuffer)
 
-registersymbol(camerastatus_aob)
-registersymbol(ryza_location_aob)
 registersymbol(detachcamera_aob)
-registersymbol(ryza_location_pointer)
-registersymbol(cameracoordinates)
+registersymbol(detachcamera_aob2)
+registersymbol(memorybuffer)
 
 newmem:
 
-camerastatuscode:
-  mov rax,[rsi]
-  mov [cameracoordinates],rax
-  movups xmm2,[rax+10]
-  jmp camerastatusreturn
-
-ryza_location_code:
-  mov rax,[rbp+60]
-  mov [ryza_location_pointer],rax
-  movaps xmm1,[Atelier_Ryza.exe+A657D0]
-  jmp ryza_location_return
-
-ryza_location_pointer:
+memorybuffer:
   dq #0
-
-cameracoordinates:
-  dq #0
-
-camerastatus_aob+04:
-  jmp camerastatuscode
-  nop 2
-camerastatusreturn:
-
-ryza_location_aob:
-  jmp ryza_location_code
-  nop 6
-ryza_location_return:
 
 detachcamera_aob:
   db 90 90 90 90 0F 10 44 24 50 F3 0F 11 4D C8 90 90 90 90
+
+detachcamera_aob2:
+  db 90 90 90 90 0F 10 44 24 30 90 90 90 90
 
 {$lua}
 
 function checkKeys()
   if syntaxcheck then return end
   if not (getForegroundProcess() == getOpenedProcessID()) then return end -- Only run if in game
-  if (getAddressSafe("[cameracoordinates]")) then
+  if (getAddressSafe("[[Atelier_Ryza.exe+013FC4A8]]")) and (getAddressSafe("memorybuffer")) then
 
     --Read and assign speed modifier value
     local speed = readFloat("speedModifier")
@@ -85,14 +55,14 @@ function checkKeys()
     local mouse_speed = readFloat("mouseSensitivity")
 
     --Camera Coordinates
-    local camx = readFloat("[cameracoordinates]+10") -- Camera X
-    local camy = readFloat("[cameracoordinates]+18") -- Camera Y
-    local camz = readFloat("[cameracoordinates]+14") -- Camera Z
+    local camx = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+10") -- Camera X
+    local camy = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+18") -- Camera Y
+    local camz = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+14") -- Camera Z
 
     --Target Coordinates
-    local targetx = readFloat("[cameracoordinates]+20") -- Camera X
-    local targety = readFloat("[cameracoordinates]+28") -- Camera Y
-    local targetz = readFloat("[cameracoordinates]+24") -- Camera Z
+    local targetx = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+20") -- Camera X
+    local targety = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+28") -- Camera Y
+    local targetz = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+24") -- Camera Z
 
     --Prevent endless error loop if camera status is not initiated
     if (targetx == nil) or (targetz == camz and targetx == camx and targety == camy) then
@@ -105,14 +75,14 @@ function checkKeys()
       targetz = 0
     else
       local new_mouse_x,new_mouse_y = getMousePos()
-      local mouse_loaded = readInteger("cameracoordinates+38")
+      local mouse_loaded = readInteger("memorybuffer+38")
 
       --Initialize mouse coordinates on first run (if using mouse)
       if not (mouse_loaded == 1) and (use_mouse == 1) then
         new_mouse_x = math.ceil(getScreenWidth() / 32)
         new_mouse_y = math.ceil(getScreenHeight() / 32)
         setMousePos(math.ceil(getScreenWidth() / 32), math.ceil(getScreenHeight() / 32))
-        writeInteger("cameracoordinates+38",1)
+        writeInteger("memorybuffer+38",1)
       end
 
       --Measure mouse movement from previous cycle
@@ -219,26 +189,26 @@ function checkKeys()
       end
 
       --Create a copy of the entire memory block before alterations.  I do not know if +1C or +2C are used, but this preserves them.
-      copyMemory("[cameracoordinates]+10",32,"cameracoordinates+10")
+      copyMemory("[[Atelier_Ryza.exe+013FC4A8]]+10",32,"memorybuffer+10")
 
       --Write new values into the temporary buffer
-      writeFloat("cameracoordinates+10", camx)
-      writeFloat("cameracoordinates+18", camy)
-      writeFloat("cameracoordinates+14", camz)
-      writeFloat("cameracoordinates+20", camx - (camdist * math.cos(tilt) * math.sin(pan)))
-      writeFloat("cameracoordinates+28", camy - (camdist * math.cos(tilt) * math.cos(pan)))
-      writeFloat("cameracoordinates+24", camz - (camdist * math.sin(tilt)))
+      writeFloat("memorybuffer+10", camx)
+      writeFloat("memorybuffer+18", camy)
+      writeFloat("memorybuffer+14", camz)
+      writeFloat("memorybuffer+20", camx - (camdist * math.cos(tilt) * math.sin(pan)))
+      writeFloat("memorybuffer+28", camy - (camdist * math.cos(tilt) * math.cos(pan)))
+      writeFloat("memorybuffer+24", camz - (camdist * math.sin(tilt)))
+
+      --Copy buffer back into memory read by game engine
+      copyMemory("memorybuffer+10",32,"[[Atelier_Ryza.exe+013FC4A8]]+10")
 
       --Teleport to where the camera is looking
       if isKeyPressed(VK_DIVIDE) then
-        writeFloat("cameracoordinates+30", camx - (camdist * math.cos(tilt) * math.sin(pan)))
-        writeFloat("cameracoordinates+38", camy - (camdist * math.cos(tilt) * math.cos(pan)))
-        writeFloat("cameracoordinates+34", camz - (camdist * math.sin(tilt)))
-        copyMemory("cameracoordinates+30",12,"[ryza_location_pointer]+28")
+        writeFloat("memorybuffer+30", camx - (camdist * math.cos(tilt) * math.sin(pan)))
+        writeFloat("memorybuffer+38", camy - (camdist * math.cos(tilt) * math.cos(pan)))
+        writeFloat("memorybuffer+34", camz - (camdist * math.sin(tilt)))
+        copyMemory("memorybuffer+30",12,"[[[Atelier_Ryza.exe+013FC4D8]+20]+8]+28")
       end
-
-      --Copy buffer back into memory read by game engine
-      copyMemory("cameracoordinates+10",32,"[cameracoordinates]+10")
     end
 
     --Speed Modifiers
@@ -277,23 +247,24 @@ writeByte("Atelier_Ryza.exe+1481940",01)
 
 {$asm}
 
-camerastatus_aob+04:
-  db 48 8B 06 0F 10 50 10
-
-ryza_location_aob:
-  db 48 8B 45 60 0F 28 0D FF 3F 71 00
-
 detachcamera_aob:
   db 0F 11 46 10 0F 10 44 24 50 F3 0F 11 4D C8 0F 11 46 20
 
-unregistersymbol(camerastatus_aob)
-unregistersymbol(ryza_location_aob)
+detachcamera_aob2:
+  db 0F 11 46 10 0F 10 44 24 30 0F 11 46 20
+
 unregistersymbol(detachcamera_aob)
-unregistersymbol(ryza_location_pointer)
-unregistersymbol(cameracoordinates)
+unregistersymbol(detachcamera_aob2)
+unregistersymbol(memorybuffer)
 dealloc(newmem)
 
 {
+// AOBs provided to help search for pointers; the addresses move so AOB injections
+// for obtaining memory addresses doesn't work.  Use these injections in front of Ryza's
+// house.  At +33B22A, [[Atelier_Ryza.exe+013FC4A8]] is copied into rax in the current
+// version of the game, and at +3517C6 [[[Atelier_Ryza.exe+013FC4D8]+20]+8] is copied
+// into rax.
+
 // ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+33B22F - Camera Coordinates
 
 Atelier_Ryza.exe+33B20B: 48 03 CA                 - add rcx,rdx
@@ -372,6 +343,32 @@ Atelier_Ryza.exe+46FD75: 41 0F 28 73 F0           - movaps xmm6,[r11-10]
 Atelier_Ryza.exe+46FD7A: 41 0F 28 7B E0           - movaps xmm7,[r11-20]
 Atelier_Ryza.exe+46FD7F: 45 0F 28 43 D0           - movaps xmm8,[r11-30]
 
+// ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+4728D3 - Detach Camera (Cutscenes)
+
+Atelier_Ryza.exe+472895: F3 0F 11 4C 24 34           - movss [rsp+34],xmm1
+Atelier_Ryza.exe+47289B: F3 0F 11 54 24 38           - movss [rsp+38],xmm2
+Atelier_Ryza.exe+4728A1: C7 44 24 3C 00 00 80 3F     - mov [rsp+3C],3F800000
+Atelier_Ryza.exe+4728A9: F3 0F 11 7C 24 50           - movss [rsp+50],xmm7
+Atelier_Ryza.exe+4728AF: 48 8D 4E 08                 - lea rcx,[rsi+08]
+Atelier_Ryza.exe+4728B3: F3 44 0F 11 4C 24 54        - movss [rsp+54],xmm9
+Atelier_Ryza.exe+4728BA: 48 8D 54 24 40              - lea rdx,[rsp+40]
+Atelier_Ryza.exe+4728BF: F3 44 0F 11 54 24 58        - movss [rsp+58],xmm10
+Atelier_Ryza.exe+4728C6: C7 44 24 5C 00 00 80 3F     - mov [rsp+5C],3F800000
+Atelier_Ryza.exe+4728CE: 0F 10 44 24 50              - movups xmm0,[rsp+50]
+// ---------- INJECTING HERE ----------
+Atelier_Ryza.exe+4728D3: 0F 11 46 10                 - movups [rsi+10],xmm0
+// ---------- DONE INJECTING  ----------
+Atelier_Ryza.exe+4728D7: 0F 10 44 24 30              - movups xmm0,[rsp+30]
+Atelier_Ryza.exe+4728DC: 0F 11 46 20                 - movups [rsi+20],xmm0
+Atelier_Ryza.exe+4728E0: E8 CB D8 E5 FF              - call Atelier_Ryza.exe+2D01B0
+Atelier_Ryza.exe+4728E5: 44 0F 28 94 24 F0 00 00 00  - movaps xmm10,[rsp+000000F0]
+Atelier_Ryza.exe+4728EE: 44 0F 28 8C 24 00 01 00 00  - movaps xmm9,[rsp+00000100]
+Atelier_Ryza.exe+4728F7: 0F 28 BC 24 20 01 00 00     - movaps xmm7,[rsp+00000120]
+Atelier_Ryza.exe+4728FF: 4C 8D 9C 24 40 01 00 00     - lea r11,[rsp+00000140]
+Atelier_Ryza.exe+472907: B0 01                       - mov al,01
+Atelier_Ryza.exe+472909: 49 8B 5B 10                 - mov rbx,[r11+10]
+Atelier_Ryza.exe+47290D: 49 8B 73 18                 - mov rsi,[r11+18]
+
 // ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+54FCD9 - Mouse Control
 
 Atelier_Ryza.exe+54FCAF: CC                    - int 3
@@ -418,8 +415,117 @@ Atelier_Ryza.exe+54FCEC: CC                    - int 3
       <GroupHeader>1</GroupHeader>
       <CheatEntries>
         <CheatEntry>
+          <ID>3</ID>
+          <Description>"True Camera and Player Coordinates"</Description>
+          <Options moHideChildren="1"/>
+          <GroupHeader>1</GroupHeader>
+          <CheatEntries>
+            <CheatEntry>
+              <ID>1001</ID>
+              <Description>"Camera X"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>10</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1002</ID>
+              <Description>"Camera Y"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>18</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1003</ID>
+              <Description>"Camera Z"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>14</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1004</ID>
+              <Description>"Target X"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>20</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1005</ID>
+              <Description>"Target Y"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>28</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1006</ID>
+              <Description>"Target Z"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4A8</Address>
+              <Offsets>
+                <Offset>24</Offset>
+                <Offset>0</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1007</ID>
+              <Description>"Player X"</Description>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4D8</Address>
+              <Offsets>
+                <Offset>28</Offset>
+                <Offset>8</Offset>
+                <Offset>20</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1008</ID>
+              <Description>"Player Y"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4D8</Address>
+              <Offsets>
+                <Offset>30</Offset>
+                <Offset>8</Offset>
+                <Offset>20</Offset>
+              </Offsets>
+            </CheatEntry>
+            <CheatEntry>
+              <ID>1009</ID>
+              <Description>"Player Z"</Description>
+              <ShowAsSigned>0</ShowAsSigned>
+              <VariableType>Float</VariableType>
+              <Address>"Atelier_Ryza.exe"+013FC4D8</Address>
+              <Offsets>
+                <Offset>2C</Offset>
+                <Offset>8</Offset>
+                <Offset>20</Offset>
+              </Offsets>
+            </CheatEntry>
+          </CheatEntries>
+        </CheatEntry>
+        <CheatEntry>
           <ID>2</ID>
-          <Description>"Camera Coordinates (Field)"</Description>
+          <Description>"Camera Coordinates (Field in front of Ryza's House)"</Description>
           <Options moHideChildren="1"/>
           <VariableType>Auto Assembler Script</VariableType>
           <AssemblerScript>[ENABLE]
@@ -552,111 +658,8 @@ Atelier_Ryza.exe+33B263: 0F 2E 44 24 40           - ucomiss xmm0,[rsp+40]
           </CheatEntries>
         </CheatEntry>
         <CheatEntry>
-          <ID>3</ID>
-          <Description>"Camera Coordinates (Hard Pointer)"</Description>
-          <Options moHideChildren="1"/>
-          <GroupHeader>1</GroupHeader>
-          <CheatEntries>
-            <CheatEntry>
-              <ID>111</ID>
-              <Description>"Camera X"</Description>
-              <ShowAsSigned>0</ShowAsSigned>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>30</Offset>
-                <Offset>1A8</Offset>
-                <Offset>30</Offset>
-                <Offset>0</Offset>
-                <Offset>478</Offset>
-                <Offset>A0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-            <CheatEntry>
-              <ID>112</ID>
-              <Description>"Camera Y"</Description>
-              <ShowAsSigned>0</ShowAsSigned>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>38</Offset>
-                <Offset>1A8</Offset>
-                <Offset>30</Offset>
-                <Offset>0</Offset>
-                <Offset>478</Offset>
-                <Offset>A0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-            <CheatEntry>
-              <ID>113</ID>
-              <Description>"Camera Z"</Description>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>34</Offset>
-                <Offset>1A8</Offset>
-                <Offset>30</Offset>
-                <Offset>0</Offset>
-                <Offset>478</Offset>
-                <Offset>A0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-            <CheatEntry>
-              <ID>114</ID>
-              <Description>"Target X"</Description>
-              <ShowAsSigned>0</ShowAsSigned>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>800</Offset>
-                <Offset>38</Offset>
-                <Offset>9E0</Offset>
-                <Offset>48</Offset>
-                <Offset>10</Offset>
-                <Offset>E0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-            <CheatEntry>
-              <ID>115</ID>
-              <Description>"Target Y"</Description>
-              <ShowAsSigned>0</ShowAsSigned>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>808</Offset>
-                <Offset>38</Offset>
-                <Offset>9E0</Offset>
-                <Offset>48</Offset>
-                <Offset>10</Offset>
-                <Offset>E0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-            <CheatEntry>
-              <ID>116</ID>
-              <Description>"Target Z"</Description>
-              <ShowAsSigned>0</ShowAsSigned>
-              <VariableType>Float</VariableType>
-              <Address>"Atelier_Ryza.exe"+013F82C0</Address>
-              <Offsets>
-                <Offset>804</Offset>
-                <Offset>38</Offset>
-                <Offset>9E0</Offset>
-                <Offset>48</Offset>
-                <Offset>10</Offset>
-                <Offset>E0</Offset>
-                <Offset>88</Offset>
-              </Offsets>
-            </CheatEntry>
-          </CheatEntries>
-        </CheatEntry>
-        <CheatEntry>
           <ID>4</ID>
-          <Description>"Player Location"</Description>
+          <Description>"Player Location (Field in front of Ryza's House)"</Description>
           <Options moHideChildren="1"/>
           <VariableType>Auto Assembler Script</VariableType>
           <AssemblerScript>[ENABLE]
