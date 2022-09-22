@@ -60,9 +60,9 @@ function checkKeys()
     local camz = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+14") -- Camera Z
 
     --Target Coordinates
-    local targetx = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+20") -- Camera X
-    local targety = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+28") -- Camera Y
-    local targetz = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+24") -- Camera Z
+    local targetx = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+20") -- Target X
+    local targety = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+28") -- Target Y
+    local targetz = readFloat("[[Atelier_Ryza.exe+013FC4A8]]+24") -- Target Z
 
     --Prevent endless error loop if camera status is not initiated
     if (targetx == nil) or (targetz == camz and targetx == camx and targety == camy) then
@@ -93,7 +93,7 @@ function checkKeys()
       if mouse_move_x &gt; math.abs(math.ceil(getScreenWidth() / 4)) then mouse_move_x = 0 end
       if mouse_move_y &gt; math.abs(math.ceil(getScreenHeight() / 4)) then mouse_move_y = 0 end
 
-      --Use math.rad() to convert from degrees if game values aren't in radians
+      --Calculate tilt, pan and distance to target from the two sets of coordinates
       local camdist = ((targetx - camx)^2 + (targety - camy)^2 + (targetz - camz)^2)^0.5
       local tilt = math.atan2(camz - targetz, ((targetx - camx)^2 + (targety - camy)^2)^0.5)
       local pan = math.atan2(targetx - camx, targety - camy) + math.rad(180) -- Horizontal (pan)
@@ -180,7 +180,7 @@ function checkKeys()
         if not(mouse_move_y == 0) then
           tilt = math.min(math.max(tilt + mouse_move_y * mouse_speed * 0.0003, math.rad(-89.5)), math.rad(89.5))
         end
-        --Tilt by mouse
+        --Pan by mouse
         if not(mouse_move_x == 0) then
           pan = pan - mouse_move_x * mouse_speed * 0.0003
         end
@@ -204,10 +204,7 @@ function checkKeys()
 
       --Teleport to where the camera is looking
       if isKeyPressed(VK_DIVIDE) then
-        writeFloat("memorybuffer+30", camx - (camdist * math.cos(tilt) * math.sin(pan)))
-        writeFloat("memorybuffer+38", camy - (camdist * math.cos(tilt) * math.cos(pan)))
-        writeFloat("memorybuffer+34", camz - (camdist * math.sin(tilt)))
-        copyMemory("memorybuffer+30",12,"[[[Atelier_Ryza.exe+013FC4D8]+20]+8]+28")
+        copyMemory("memorybuffer+20",12,"[[[Atelier_Ryza.exe+013FC4D8]+20]+8]+28")
       end
     end
 
@@ -261,9 +258,8 @@ dealloc(newmem)
 {
 // AOBs provided to help search for pointers; the addresses move so AOB injections
 // for obtaining memory addresses doesn't work.  Use these injections in front of Ryza's
-// house.  At +33B22A, [[Atelier_Ryza.exe+013FC4A8]] is copied into rax in the current
-// version of the game, and at +3517C6 [[[Atelier_Ryza.exe+013FC4D8]+20]+8] is copied
-// into rax.
+// house.  As of v1.08, at +33B22A, [[Atelier_Ryza.exe+013FC4A8]] is copied into rax,
+// and at +3517C6 [[[Atelier_Ryza.exe+013FC4D8]+20]+8] is copied into rax.
 
 // ORIGINAL CODE - INJECTION POINT: Atelier_Ryza.exe+33B22F - Camera Coordinates
 
