@@ -56,10 +56,10 @@ function checkKeys()
     local speed = readFloat("speedModifier")
     local use_mouse = readFloat("useMouse")
     --If mouse control is enabled in-game, disable mouse control in freecam mode
-    --[[if (readByte("Atelier_Ryza_2.exe+17F8030") &gt; 0) then
+    if (readByte("Atelier_Ryza_2.exe+17F8030") &gt; 0) then
       use_mouse = 0
       writeByte("Atelier_Ryza_2.exe+17F8030",00)
-    end]]
+    end
     local mouse_speed = readFloat("mouseSensitivity")
 
     --Camera Coordinates
@@ -248,7 +248,7 @@ timer_setEnabled(t, true)
 {$lua}
 
 timer_setEnabled(t, false)
---writeByte("Atelier_Ryza_2.exe+17F8030",01)
+writeByte("Atelier_Ryza_2.exe+17F8030",01)
 
 {$asm}
 
