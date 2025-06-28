@@ -268,7 +268,7 @@ dealloc(newmem)
 // AOBs provided to help search for pointers; the addresses move so AOB injections
 // for obtaining memory addresses doesn't work.  Use these injections in front of
 // the stairs in the Commercial District (near the Crystal Sparkle Pavilion).
-// As of v1.08, at +4D42FD, [[Atelier_Ryza_3.exe+22B6730]] is copied into rax,
+// As of v1.07, at +925213, [[Atelier_Ryza_3.exe+22B6730]] is copied into rax,
 // and at +C014AC [[[[[Atelier_Ryza_3.exe+22B6768]+28]+8]]+8] is copied into rax.
 
 // ORIGINAL CODE - INJECTION POINT: Atelier_Ryza_3.exe+925213 - Camera Coordinates
